@@ -4,20 +4,28 @@ type matrix = {
   cols : int;
 }
 
-let mk_matrix (lst: float list) ((r, c): int * int) : matrix =
-if r=0 || c=0 then{ entries =[]; rows=r; cols=c}
+let rec remove_n lst n =
+  match lst with
+   | [] -> [] 
+   | _ :: tl -> 
+     if n = 0 then lst 
+     else remove_n tl (n - 1) 
+    
+let mk_matrix lst (r,c)=
+if r =0 || c=0 then {entries =[];rows=r;cols =c}
 else
-  let rec filling_rows lst remaining_rows =
-    if remaining_rows = 0 then []
-    else
-      let rec extract_row lst c acc =
-        match lst, c with
-        | _, 0 -> (List.rev acc, lst)  
-        | x::xs, c -> extract_row xs (c - 1) (x :: acc)  
-        | [], _ -> (List.rev acc, [])  
-      in
-      let (new_row, remaining_lst) = extract_row lst c [] 
-      in
-      new_row :: filling_rows remaining_lst (remaining_rows - 1) 
-  in
-  { entries = filling_rows lst r; rows = r; cols = c }
+let rec n_rows r lst =
+if r =0 then []
+else
+ let rec mk_row lst c =
+    match lst with
+     | [] -> []
+     | hd::tl ->
+            if c =  0 then [] 
+            else hd:: mk_row tl (c-1)
+ in
+        let row = mk_row lst c in
+        let remain_lst = remove_n lst c in
+        row :: n_rows (r - 1) (remain_lst) 
+in
+    { entries = n_rows r lst; rows = r; cols = c };;

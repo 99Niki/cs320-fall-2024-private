@@ -1,13 +1,8 @@
 open OUnit2
 open Assign02_03
 
-(* We'll assume unnecessarily large error *)
 let is_close f1 f2 =
-<<<<<<< HEAD
-  (f1 -. f2 )<= 0.0000001
-=======
   abs_float (f1 -. f2) <= 0.0000001
->>>>>>> upstream/main
 
 let test p p_name e =
   let d =
