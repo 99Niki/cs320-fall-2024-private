@@ -3,7 +3,7 @@ open Assign02_03
 
 (* We'll assume unnecessarily large error *)
 let is_close f1 f2 =
-  f1 -. f2 <= 0.0000001
+  (f1 -. f2 )<= 0.0000001
 
 let test p p_name e =
   let d =
