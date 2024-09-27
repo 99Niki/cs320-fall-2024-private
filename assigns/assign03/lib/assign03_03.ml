@@ -1,16 +1,15 @@
-(* Define the tree type *)
 type tree =
   | Leaf of int
   | Node of tree list
 
-(* Calculate the height of the tree *)
+
+(*The code i get help from chatGPT*)
 let rec height t =
   match t with
   | Leaf _ -> 0
   | Node [] -> 0
   | Node children -> 1 + List.fold_left (fun acc subtree -> max acc (height subtree)) 0 children
 
-(* Custom flatten function *)
 let rec flatten lst =
   match lst with
   | [] -> []
@@ -19,7 +18,6 @@ let rec flatten lst =
       | [] -> flatten xs
       | _ -> x @ flatten xs  (* Use @ to concatenate lists *)
 
-(* Collapse function *)
 let rec collapse h t =
   if h <= 0 then
     failwith "Height must be positive"
