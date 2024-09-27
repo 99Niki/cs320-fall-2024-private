@@ -1,29 +1,44 @@
+(* Define the tree type *)
 type tree =
   | Leaf of int
   | Node of tree list
 
+(* Calculate the height of the tree *)
 let rec height t =
   match t with
   | Leaf _ -> 0
   | Node [] -> 0
-  | Node children -> 1 + List.fold_left (fun acc child -> max acc (height child)) 0 children
+  | Node children -> 1 + List.fold_left (fun acc subtree -> max acc (height subtree)) 0 children
 
+(* Custom flatten function *)
+let rec flatten lst =
+  match lst with
+  | [] -> []
+  | x :: xs ->
+      match x with
+      | [] -> flatten xs
+      | _ -> x @ flatten xs  (* Use @ to concatenate lists *)
 
-(*if the height of the tree is already h or greater than it, it don NOT need to collapse*)
-(*else start at the h+1 level, the node of tree list all become the leaf _*)
+(* Collapse function *)
 let rec collapse h t =
-  let l = height t in
-  if h >= l then t  (* If the height is already h or greater, return the tree unchanged *)
-  else 
-    let rec helper current_height t =
-      match t with
-      | Leaf v -> t  (* A leaf remains a leaf *)
-      | Node [] -> t  (* An empty node remains an empty node *)
-      | Node children ->
-          if current_height > h then
-            Node []  (* Collapse to an empty node if the current height exceeds h *)
-          else
-            let new_children = List.map (helper (current_height + 1)) children in
-            Node new_children  (* Process and return children *)
-    in
-    helper (h + 1) t  (* Start processing from level h + 1 *)
+  if h <= 0 then
+    failwith "Height must be positive"
+  else
+    match t with
+    | Leaf v -> Leaf v  (* Leaves are unchanged *)
+    | Node children ->
+        if height t <= h then
+          t  (* No need to collapse if the height is less than or equal to h *)
+        else
+          let new_children = 
+            flatten (List.map (fun subtree ->
+              if height subtree = (h - 1) then
+                match subtree with
+                | Leaf v -> [Leaf v]  (* Keep leaf nodes as they are *)
+                | Node child_list -> child_list  (* Replace Node with its children *)
+              else
+                [collapse h subtree]  (* Recursively collapse other subtrees *)
+            ) children)
+          in
+          Node new_children
+
