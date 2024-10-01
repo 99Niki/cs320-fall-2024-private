@@ -2,7 +2,7 @@
 
 (*count the steps*)
 let rec count_step f x pred steps=
-    if steps = max_int  then 0  (*infinite*)
+    if steps = 1000  then 0  (*infinite*)
     else if pred (f x) then steps
     else count_step f (f x) pred (steps+1)
 
