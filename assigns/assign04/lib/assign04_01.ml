@@ -11,12 +11,12 @@ let rec find_max funcs start pred max_fun max_span =
   | [] -> max_fun  
   | h :: t -> 
       let span = count_step h start pred 0 in
-      if span =10000 
+      if span =10000
       then find_max t start pred (Some h) max_span 
       else if span > max_span then
         find_max t start pred (Some h) span  
       else if span = max_span then
-        find_max t start pred None max_span  
+        find_max t start pred None span  
       else
         find_max t start pred max_fun max_span  
 
@@ -24,7 +24,7 @@ let rec find_max funcs start pred max_fun max_span =
 let last_function_standing (funcs: ('a -> 'a) list) (start: 'a) (pred:('a -> bool)) =
     match funcs with
     | [] -> None
-    | _ -> find_max funcs start pred None (-1)
+    | _ -> find_max funcs start pred None 0
     
 
 
