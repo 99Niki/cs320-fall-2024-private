@@ -2,8 +2,7 @@
 
 (*count the steps*)
 let rec count_step f x pred steps=
-    if steps = 1000  then 0  (*infinite*)
-    else if pred (f x) then steps
+    if pred (f x) then steps
     else count_step f (f x) pred (steps+1)
 
 let rec find_max funcs start pred max_fun max_span =
@@ -11,7 +10,8 @@ let rec find_max funcs start pred max_fun max_span =
   | [] -> max_fun  
   | h :: t -> 
       let span = count_step h start pred 0 in
-      if span > max_span then
+      if span >1000 then find_max t start pred None max_span 
+      else if span > max_span then
         find_max t start pred (Some h) span  
       else if span = max_span then
         find_max t start pred None max_span  
