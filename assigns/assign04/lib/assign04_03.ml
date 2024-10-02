@@ -1,6 +1,5 @@
 open Assign04_02
 
-
 type value = 
 | VNum of int
 | VBool of bool

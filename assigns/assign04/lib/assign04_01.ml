@@ -12,7 +12,7 @@ let rec find_max funcs start pred max_fun max_span =
   | h :: t -> 
       let span = count_step h start pred 0 in
       if span =10000
-      then find_max t start pred (Some h) max_span 
+      then find_max t start pred (Some h) span 
       else if span > max_span then
         find_max t start pred (Some h) span  
       else if span = max_span then
