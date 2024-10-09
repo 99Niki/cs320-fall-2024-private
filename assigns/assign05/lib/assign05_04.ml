@@ -32,7 +32,6 @@ module ListSet = struct
 end
 
 
-
 module FuncSet = struct
   type t = set_info
 
@@ -53,7 +52,16 @@ module FuncSet = struct
     }
 
     let card s =
-      if s.ind s.mn then s.mx - s.mn + 1 else 0
+      if s.mn > s.mx then 0
+      else
+        let rec len i count =
+          if i > s.mx then count 
+          else if s.ind i then         
+            len (i + 1) (count + 1)
+          else                           
+            len (i + 1) count
+          in len s.mn 0 
+
   
     let union s1 s2 = {
       ind = (fun x -> s1.ind x || s2.ind x); 
