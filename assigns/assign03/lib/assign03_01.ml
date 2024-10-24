@@ -1,16 +1,12 @@
-
-let rec update_value k v lst=
-    match lst with 
-    | [] -> [(k,v)]
-    | hd::tl -> let key = fst hd in
-                let value = snd hd in
-                    if  k = key then (key, v+value)::tl
-                    else (key,value)::update_value k v tl
-
-
-let rec mk_unique_keys (alst : (string * int) list) =
-    match alst with
-    | [] ->[]
-    | (k,v)::tl -> let updated_list = update_value k v (mk_unique_keys tl)
-                     in
-                     updated_list
+let mk_unique_keys:(string * int )list -> (string * int )list =
+   let rec insert (k,v) l =
+        match l with
+        | [] -> []
+        | (y,w)::t -> if k=y then (k,w+v)::t else (y,w):: insert (k,v)l
+   in
+   let rec check_list out l=
+    match l with 
+    | [] -> []
+    | h::t -> check_list (insert h out) t 
+    in
+    check_list []
