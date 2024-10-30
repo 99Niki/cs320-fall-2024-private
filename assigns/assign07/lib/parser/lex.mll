@@ -8,7 +8,34 @@ let var = ['a'-'z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']*
 
 rule read =
   parse
-  | num { NUM (int_of_string (Lexing.lexeme lexbuf)) }
-  | var { VAR (Lexing.lexeme lexbuf) }
+  | "if"       {IF}
+  | "then"     {THEN}
+  | "else"     {ELSE}
+  | "let"      {LET}
+  | "="        {EQ}
+  | "in"       {IN}
+  | "fun"      {FUN}
+  | "->"       {ARROW}
+  | "("        {LPAREN}
+  | ")"        {RPAREN}
+  | "+"        {ADD}
+  | "-"        {SUB}
+  | "*"        {MUL}
+  | "/"        {DIV}
+  | "mod"      {MOD}
+  | "<"        {LT}
+  | "<="       {LTE}
+  | ">"        {GT}
+  | ">="       {GTE}
+  | "<>"       {NEQ}
+  | "&&"       {AND}
+  | "||"       {OR}
+  | "()"       {UNIT}
+  | "{"        {LBARCE}
+  | "}"        {RBARCE}
+  | "true"     {TRUE}
+  | "false"    {FALSE}
+  | num        { NUM (int_of_string (Lexing.lexeme lexbuf)) }
+  | var        { VAR (Lexing.lexeme lexbuf) }
   | whitespace { read lexbuf }
   | eof { EOF }
