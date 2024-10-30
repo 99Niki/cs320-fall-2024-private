@@ -1,4 +1,0 @@
-(library
-  (name test_suite)
-  (libraries ounit2 assign03)
-  (wrapped false))
