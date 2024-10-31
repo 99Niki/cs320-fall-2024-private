@@ -7,18 +7,20 @@ open Utils
 %token IF
 %token THEN
 %token ELSE
-%token LET
+%token LET 
 %token EQ
 %token IN
-%token FUN 
+%token FUN
 %token ARROW
-%token LPAREN
-%token RPAREN
-%token LBARCE
-%token RBARCE
+%token EOF
+%token LBRACE
+%token RBRACE
+%token UNIT
 %token TRUE
 %token FALSE
-%token ADD 
+%token LPAREN
+%token RPAREN
+%token ADD
 %token SUB
 %token MUL
 %token DIV
@@ -30,15 +32,12 @@ open Utils
 %token NEQ
 %token AND
 %token OR
-%token UNIT
-%token EOF
 
 %right OR
 %right AND
 %left LT LTE GT GTE EQ NEQ
 %left ADD SUB
 %left MUL DIV MOD
-
 
 %start <Utils.prog> prog
 
@@ -50,13 +49,22 @@ prog:
 expr:
   | IF; e1=expr; THEN; e2=expr; ELSE; e3=expr {If(e1,e2,e3)}
   | LET; x=VAR; EQ; e1=expr; IN; e2=expr {Let(x,e1,e2)}
-  | FUN; x=VAR; ARROW; e1=expr {Fun(x,e1)}
-  | e1=expr2 { e1 }
+  | FUN; x= VAR; ARROW; e1=expr {Fun(x,e1)}
+  | e1=expr2  {e1}
 
 expr2:
-  |e1=expr2; op = bop; e2= expr2  {Bop(op,e1,e2)}
-  |e1=expr3; LBARCE; e2=expr3;RBARCE {App(e1,e2)}
-  |e1=expr3 {e1}
+  | e1=expr2; op=bop; e2=expr2 {Bop(op,e1,e2)}
+  | e1=expr3; LBRACE; e2=expr3; RBRACE {App(e1,e2)}
+  | e1=expr3; es=expr3* 
+    {
+      let rec helper acc lst =
+        match lst with
+        | [] -> acc
+        | h::t -> helper (App(acc, h)) t
+      in
+      helper e1 es
+    }
+
 
 expr3:
   | UNIT {Unit}
@@ -64,7 +72,7 @@ expr3:
   | FALSE {False}
   | n = NUM {Num n}
   | x = VAR {Var x}
-  | LPAREN; e1= expr; RPAREN {e1}
+  | LPAREN; e1=expr; RPAREN {e1}
 
 %inline bop:
   | ADD {Add}
@@ -80,3 +88,4 @@ expr3:
   | NEQ {Neq}
   | AND {And}
   | OR  {Or}
+

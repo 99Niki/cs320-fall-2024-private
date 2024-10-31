@@ -31,8 +31,8 @@ rule read =
   | "&&"       {AND}
   | "||"       {OR}
   | "()"       {UNIT}
-  | "{"        {LBARCE}
-  | "}"        {RBARCE}
+  | "{"        {LBRACE}
+  | "}"        {RBRACE}
   | "true"     {TRUE}
   | "false"    {FALSE}
   | num        { NUM (int_of_string (Lexing.lexeme lexbuf)) }
