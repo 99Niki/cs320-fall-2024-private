@@ -1,0 +1,8 @@
+(library
+ (name my_parser)
+ (public_name interp01.my_parser)  
+ (libraries interp01.utils)      
+ (modules par))
+
+(menhir (modules par))
+(ocamllex lex)
