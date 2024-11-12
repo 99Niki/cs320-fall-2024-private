@@ -1,5 +1,10 @@
 %{
 open Utils
+
+let rec mk_app e = function
+  | [] -> e
+  | x :: es -> mk_app (App (e, x)) es
+
 %}
 
 %token <int> NUM
@@ -38,6 +43,7 @@ open Utils
 %left LT LTE GT GTE EQ NEQ
 %left ADD SUB
 %left MUL DIV MOD
+%left mk_app
 (*function application ->left*)
 
 %start <Utils.prog> prog
@@ -45,21 +51,20 @@ open Utils
 %%
 
 prog:
-  | lets = toplet* EOF {lets}
-
-toplet:
-  | "let" x = VAR "=" e = expr { (x, e) }
+  | e = expr EOF { e }
 
 expr:
   | "if" e1=expr "then" e2=expr "else" e3=expr {If(e1,e2,e3)}
   | "let" x = VAR "=" e1 = expr "in" e2 = expr {Let(x,e1,e2)}
   | "fun" x = VAR "->" e = expr {Fun(x,e)}
-  | e1 = expr {e1}
+  | e1 = expr2 {e1}
 
 
 expr2:
   | e1=expr2; op=bop; e2=expr2 {Bop(op,e1,e2)}
   | e1=expr3 "{" e2=expr3 "}" {App(e1,e2)}
+  | e = expr3; es = expr3* { mk_app e es }
+
 
 expr3:
   | "()" {Unit}

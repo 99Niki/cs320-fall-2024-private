@@ -26,31 +26,6 @@ let rec subst (v:value) (x:string) (e:expr):expr =
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
-let eval_bop op e1 e2 =
-match (eval e1, eval e2) with
-| (Ok (VNum n1), Ok (VNum n2)) -> (
-    match op with
-    | Add -> Ok (VNum (n1 + n2))
-    | Sub -> Ok (VNum (n1 - n2))
-    | Mul -> Ok (VNum (n1 * n2))
-    | Div -> if n2 = 0 then Error DivByZero else Ok (VNum (n1 / n2))
-    | Mod -> if n2 = 0 then Error DivByZero else Ok (VNum (n1 mod n2))
-    | Lt -> Ok (VBool (n1 < n2))
-    | Lte -> Ok (VBool (n1 <= n2))
-    | Gt -> Ok (VBool (n1 > n2))
-    | Gte -> Ok (VBool (n1 >= n2))
-    | Eq -> Ok (VBool (n1 = n2))
-    | Neq -> Ok (VBool (n1 <> n2))
-    | _ -> Error InvalidArgs)
-| (Ok (VBool b1), Ok (VBool b2)) -> 
-        (match op with
-          | And -> Ok (VBool (b1 && b2))
-          | Or -> Ok (VBool (b1 || b2))
-          | Eq -> Ok (VBool (b1 = b2))
-          | Neq -> Ok (VBool (b1 <> b2))
-          | _ -> Error InvalidArgs)
-| _ -> Error InvalidArgs)
-
 
 let rec eval (e:expr): (value,error)result=
   match e with
@@ -65,13 +40,41 @@ let rec eval (e:expr): (value,error)result=
       | Ok(VFun (x,e))->
         (
           match eval e2 with
-          | Ok v -> subst v x e
+          | Ok v -> eval (subst v x e)
           | Error e -> Error e
         )
       | Ok _ -> Error InvalidApp
       | Error e -> Error e
     )
-  | Bop (op,e1,e2) -> eval_op e1 e2
+  | Bop (op,e1,e2) -> 
+    (
+        match (eval e1, eval e2) with
+      | (Ok (VNum n1), Ok (VNum n2)) -> 
+        (
+          match op with
+          | Add -> Ok (VNum (n1 + n2))
+          | Sub -> Ok (VNum (n1 - n2))
+          | Mul -> Ok (VNum (n1 * n2))
+          | Div -> if n2 = 0 then Error DivByZero else Ok (VNum (n1 / n2))
+          | Mod -> if n2 = 0 then Error DivByZero else Ok (VNum (n1 mod n2))
+          | Lt -> Ok (VBool (n1 < n2))
+          | Lte -> Ok (VBool (n1 <= n2))
+          | Gt -> Ok (VBool (n1 > n2))
+          | Gte -> Ok (VBool (n1 >= n2))
+          | Eq -> Ok (VBool (n1 = n2))
+          | Neq -> Ok (VBool (n1 <> n2))
+          | _ -> Error (InvalidArgs op)
+        )
+      | (Ok (VBool b1), Ok (VBool b2)) -> 
+              (match op with
+                | And -> Ok (VBool (b1 && b2))
+                | Or -> Ok (VBool (b1 || b2))
+                | Eq -> Ok (VBool (b1 = b2))
+                | Neq -> Ok (VBool (b1 <> b2))
+                | _ -> Error (InvalidArgs op)
+                )
+      | _ -> Error (InvalidArgs op)
+  )
   | If (e1, e2, e3) ->
     (match eval e1 with
      | Ok (VBool true) -> eval e2
@@ -83,9 +86,11 @@ let rec eval (e:expr): (value,error)result=
       | Ok v1 -> eval (subst v1 x e2)
       | Error e -> Error e)
   | Fun (x, e) -> Ok (VFun (x, e))
+  
+  
 
   let interp (s : string) : (value, error) result =
-    match Parser.parse s with
+    match My_parser.parse s with
     | None -> Error ParseFail
     | Some prog -> eval prog
   
