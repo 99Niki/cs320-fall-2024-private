@@ -44,13 +44,12 @@ let rec mk_app e = function
 %left ADD SUB
 %left MUL DIV MOD
 
-%start <Utils.prog option> prog
+%start <Utils.prog > prog
 
 %%
 
 prog:
-  | e = expr; EOF {Some e }
-  | EOF { None }
+  | e = expr; EOF { e }
 
 expr:
   | "if" e1=expr "then" e2=expr "else" e3=expr {If(e1,e2,e3)}

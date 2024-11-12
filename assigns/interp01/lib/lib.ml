@@ -1,12 +1,6 @@
 open Utils
 
-let parse (s: string) : expr option =
-  try
-    match My_parser.parse s with
-    | Some (Some e) -> Some e 
-    | _ -> None
-  with
-  | _ -> None
+let parse (s: string) : expr option = My_parser.parse (s)
 
 let replace_var x y =
   let rec go = function
@@ -70,37 +64,9 @@ let rec eval (e:expr): (value,error)result=
           | Ok v -> eval (subst v p b)
           | _ -> Error InvalidApp
         )
-      | _ -> Error InvalidApp
+      | Ok _ -> Error InvalidApp
+      | Error e -> Error e 
     )
-  | Bop (op,e1,e2) -> 
-    (
-        match (eval e1, eval e2) with
-      | (Ok (VNum n1), Ok (VNum n2)) -> 
-        (
-          match op with
-          | Add -> Ok (VNum (n1 + n2))
-          | Sub -> Ok (VNum (n1 - n2))
-          | Mul -> Ok (VNum (n1 * n2))
-          | Div -> (if n2 = 0 then Error DivByZero 
-                    else Ok (VNum (n1 / n2)))
-          | Mod -> (if n2 = 0 then Error DivByZero 
-                    else Ok (VNum (n1 mod n2)))
-          | Lt -> Ok (VBool (n1 < n2))
-          | Lte -> Ok (VBool (n1 <= n2))
-          | Gt -> Ok (VBool (n1 > n2))
-          | Gte -> Ok (VBool (n1 >= n2))
-          | Eq -> Ok (VBool (n1 = n2))
-          | Neq -> Ok (VBool (n1 <> n2))
-          | _ -> Error (InvalidArgs op)
-        )
-      | (Ok (VBool b1), Ok (VBool b2)) -> 
-              (match op with
-                | And -> Ok (VBool (b1 && b2))
-                | Or -> Ok (VBool (b1 || b2))
-                | _ -> Error (InvalidArgs op)
-                )
-      | _ -> Error (InvalidArgs op)
-  )
   | If (e1, e2, e3) ->
     (match eval e1 with
      | Ok (VBool true) -> eval e2
@@ -112,12 +78,36 @@ let rec eval (e:expr): (value,error)result=
       | Ok v1 -> eval (subst v1 x e2)
       | Error e -> Error e)
   | Fun (x, e) -> Ok (VFun (x, e))
-  
-  
+  | Bop (op, e1, e2) -> (
+      match eval e1 with
+      | Ok v1 -> (
+          match eval e2 with
+          | Ok v2 -> eval_bop op v1 v2
+          | Error err -> Error err)
+      | Error err -> Error err)
+
+and eval_bop op v1 v2 =
+  match op, v1, v2 with
+  | Add, VNum n1, VNum n2 -> Ok (VNum (n1 + n2))
+  | Sub, VNum n1, VNum n2 -> Ok (VNum (n1 - n2))
+  | Mul, VNum n1, VNum n2 -> Ok (VNum (n1 * n2))
+  | Div, VNum n1, VNum n2 -> 
+      if n2 = 0 then Error DivByZero else Ok (VNum (n1 / n2))
+  | Mod, VNum n1, VNum n2 -> 
+      if n2 = 0 then Error DivByZero else Ok (VNum (n1 mod n2))
+  | Lt, VNum n1, VNum n2 -> Ok (VBool (n1 < n2))
+  | Lte, VNum n1, VNum n2 -> Ok (VBool (n1 <= n2))
+  | Gt, VNum n1, VNum n2 -> Ok (VBool (n1 > n2))
+  | Gte, VNum n1, VNum n2 -> Ok (VBool (n1 >= n2))
+  | Eq, VNum n1, VNum n2 -> Ok (VBool (n1 = n2))
+  | Neq, VNum n1, VNum n2 -> Ok (VBool (n1 <> n2))
+  | And, VBool b1, VBool b2 -> Ok (VBool (b1 && b2))
+  | Or, VBool b1, VBool b2 -> Ok (VBool (b1 || b2))
+  | _ -> Error (InvalidArgs op)
   
   let interp (s : string) : (value, error) result =
     match parse s with
-    | Some prog -> eval prog
+    | Some e -> eval e
     | _ -> Error ParseFail
     
   

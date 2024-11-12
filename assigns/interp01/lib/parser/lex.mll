@@ -1,5 +1,6 @@
 {
 open Par
+exception LexError of string
 }
 
 let whitespace = [' ' '\t' '\n' '\r']+
