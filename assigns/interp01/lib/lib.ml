@@ -3,8 +3,8 @@ open Utils
 let parse (s: string) : expr option =
   try
     match My_parser.parse s with
-    | Some e -> e 
-    | None -> None
+    | Some (Some e) -> Some e 
+    | _ -> None
   with
   | _ -> None
 
