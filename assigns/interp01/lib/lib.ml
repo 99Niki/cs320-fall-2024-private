@@ -1,8 +1,12 @@
 open Utils
-open My_parser
 
-let parse (s:string):expr option=
-  parse(s)
+let parse (s: string) : expr option =
+  try
+    match My_parser.parse s with
+    | Some e -> e 
+    | None -> None
+  with
+  | _ -> None
 
 let replace_var x y =
   let rec go = function
@@ -64,10 +68,9 @@ let rec eval (e:expr): (value,error)result=
         (
           match eval e2 with
           | Ok v -> eval (subst v p b)
-          | Error e -> Error e
+          | _ -> Error InvalidApp
         )
-      | Ok _ -> Error InvalidApp
-      | Error e -> Error e
+      | _ -> Error InvalidApp
     )
   | Bop (op,e1,e2) -> 
     (
@@ -94,8 +97,6 @@ let rec eval (e:expr): (value,error)result=
               (match op with
                 | And -> Ok (VBool (b1 && b2))
                 | Or -> Ok (VBool (b1 || b2))
-                | Eq -> Ok (VBool (b1 = b2))
-                | Neq -> Ok (VBool (b1 <> b2))
                 | _ -> Error (InvalidArgs op)
                 )
       | _ -> Error (InvalidArgs op)
@@ -104,7 +105,6 @@ let rec eval (e:expr): (value,error)result=
     (match eval e1 with
      | Ok (VBool true) -> eval e2
      | Ok (VBool false) -> eval e3
-     | Error e -> Error e
      | _ -> Error InvalidIfCond
      )
   | Let (x, e1, e2) ->
@@ -114,8 +114,9 @@ let rec eval (e:expr): (value,error)result=
   | Fun (x, e) -> Ok (VFun (x, e))
   
   
+  
   let interp (s : string) : (value, error) result =
-    match My_parser.parse s with
+    match parse s with
     | Some prog -> eval prog
     | _ -> Error ParseFail
     
