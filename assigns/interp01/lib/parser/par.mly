@@ -13,6 +13,7 @@ let rec mk_app e = function
 %token THEN "then"
 %token ELSE "else"
 %token LET "let"
+%token REC "rec"
 %token EQ "="
 %token IN "in"
 %token FUN "fun"
@@ -49,9 +50,12 @@ let rec mk_app e = function
 
 prog:
   | e = expr; EOF {Some e }
+  | EOF { None }
 
 expr:
   | "if" e1=expr "then" e2=expr "else" e3=expr {If(e1,e2,e3)}
+  | "let" "rec" f = VAR x = VAR "=" e1 = expr IN e2 = expr 
+    { Let(f, Fun(x, e1), e2) }
   | "let" x = VAR "=" e1 = expr "in" e2 = expr {Let(x,e1,e2)}
   | "fun" x = VAR "->" e = expr {Fun(x,e)}
   | e = expr2 { e }
