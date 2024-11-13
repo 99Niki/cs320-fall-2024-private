@@ -4,16 +4,16 @@ let parse (s: string) : expr option = My_parser.parse (s)
 
 let replace_var x y =
   let rec go = function
-    | Var z -> if z = y then Var x else Var z
-    | App (e1, e2) -> App (go e1, go e2)
-    | Fun (z, e) -> Fun (z, go e)
-    | Let (z, e1, e2) -> Let(z, go e1, go e2)
-    | Unit -> Unit
-    | True -> True
-    | False -> False
-    | Num m -> Num m
-    | Bop (op,e1,e2)-> Bop(op, go e1,go e2)
-    | If (e1,e2,e3)-> If (go e1, go e2,go e3)
+  | Var z -> if z = y then Var x else Var z
+  | App (e1, e2) -> App (go e1, go e2)
+  | Fun (z, e) -> if z = y then Fun (z, e) else Fun (z, go e)
+  | Let (z, e1, e2) -> if z = y then Let (z, go e1, e2) else Let(z, go e1, go e2)
+  | Unit -> Unit
+  | True -> True
+  | False -> False
+  | Num m -> Num m
+  | Bop (op,e1,e2)-> Bop(op, go e1,go e2)
+  | If (e1,e2,e3)-> If (go e1, go e2,go e3)
   in 
   go
   
