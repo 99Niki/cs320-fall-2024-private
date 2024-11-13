@@ -8,35 +8,33 @@ let rec mk_app e = function
 
 %token <int> NUM
 %token <string> VAR
+%token UNIT
+%token TRUE
+%token FALSE
+%token LPAREN
+%token RPAREN
+%token ADD
+%token SUB
+%token MUL
+%token DIV
+%token MOD
+%token LT
+%token LTE
+%token GT
+%token GTE
+%token EQ
+%token NEQ
+%token AND
+%token OR
+%token IF
+%token THEN
+%token ELSE
+%token LET
+%token IN
+%token FUN
+%token ARROW
+
 %token EOF
-%token IF "if"
-%token THEN "then"
-%token ELSE "else"
-%token LET "let"
-%token REC "rec"
-%token EQ "="
-%token IN "in"
-%token FUN "fun"
-%token ARROW "->"
-%token LBRACE "("
-%token RBRACE ")"
-%token UNIT "()"
-%token TRUE "true"
-%token FALSE "false"
-%token LPAREN "{"
-%token RPAREN "}"
-%token ADD "add"
-%token SUB "-"
-%token MUL "*"
-%token DIV "/"
-%token MOD "mod"
-%token LT "<"
-%token LTE "<="
-%token GT ">"
-%token GTE ">="
-%token NEQ "<>"
-%token AND "and"
-%token OR "or"
 
 %right OR
 %right AND
@@ -44,33 +42,18 @@ let rec mk_app e = function
 %left ADD SUB
 %left MUL DIV MOD
 
-%start <Utils.prog > prog
+%start <Utils.prog> prog
 
 %%
 
 prog:
-  | e = expr; EOF { e }
+  | e = expr EOF { e }
 
 expr:
-  | "if" e1=expr "then" e2=expr "else" e3=expr {If(e1,e2,e3)}
-  | "let" "rec" f = VAR x = VAR "=" e1 = expr IN e2 = expr 
-    { Let(f, Fun(x, e1), e2) }
-  | "let" x = VAR "=" e1 = expr "in" e2 = expr {Let(x,e1,e2)}
-  | "fun" x = VAR "->" e = expr {Fun(x,e)}
+  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr { If (e1, e2, e3) }
+  | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr { Let (x, e1, e2) }
+  | FUN; x = VAR; ARROW; e = expr { Fun (x, e) }
   | e = expr2 { e }
-
-expr2:
-  | e1 = expr2; op = bop; e2 = expr2 { Bop (op, e1, e2) }
-  | e1=expr3 "{" e2=expr3 "}" {App(e1,e2)}
-  | e = expr3; es = expr3* { mk_app e es }
-
-expr3:
-  | "()" {Unit}
-  | "true" {True}
-  | "false" {False}
-  | n = NUM {Num n}
-  | x = VAR {Var x}
-  | "(" e1=expr ")"{e1}
 
 %inline bop:
   | ADD { Add }
@@ -86,3 +69,14 @@ expr3:
   | NEQ { Neq }
   | AND { And }
   | OR { Or }
+
+expr2:
+  | e1 = expr2; op = bop; e2 = expr2 { Bop (op, e1, e2) }
+  | e = expr3; es = expr3* { mk_app e es }
+expr3:
+  | UNIT { Unit }
+  | TRUE { True }
+  | FALSE { False }
+  | n = NUM { Num n }
+  | x = VAR { Var x }
+  | LPAREN; e = expr; RPAREN { e }

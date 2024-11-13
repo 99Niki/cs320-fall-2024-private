@@ -83,9 +83,9 @@ let rec eval (e:expr): (value,error)result=
       | Ok v1 -> (
           match eval e2 with
           | Ok v2 -> eval_bop op v1 v2
-          | Error err -> Error err)
-      | Error err -> Error err)
-
+          | Error e -> Error e)
+      | Error e -> Error e)
+  
 and eval_bop op v1 v2 =
   match op, v1, v2 with
   | Add, VNum n1, VNum n2 -> Ok (VNum (n1 + n2))
@@ -104,6 +104,7 @@ and eval_bop op v1 v2 =
   | And, VBool b1, VBool b2 -> Ok (VBool (b1 && b2))
   | Or, VBool b1, VBool b2 -> Ok (VBool (b1 || b2))
   | _ -> Error (InvalidArgs op)
+
   
   let interp (s : string) : (value, error) result =
     match parse s with
