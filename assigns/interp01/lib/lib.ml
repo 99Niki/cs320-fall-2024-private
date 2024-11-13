@@ -55,7 +55,7 @@ let rec eval (e:expr): (value,error)result=
   | Unit -> Ok (VUnit)
   | True -> Ok (VBool true)
   | False -> Ok (VBool false)
-  | App (e1,e2) -> 
+  | App (e1, e2) -> 
     (
       match eval e1 with
       | Ok(VFun (p,b))->
@@ -105,11 +105,11 @@ and eval_bop op v1 v2 =
   | Or, VBool b1, VBool b2 -> Ok (VBool (b1 || b2))
   | _ -> Error (InvalidArgs op)
 
-  
-  let interp (s : string) : (value, error) result =
-    match parse s with
-    | Some e -> eval e
-    | _ -> Error ParseFail
+  let interp str =
+    match parse str with
+    | Some expr -> eval expr
+    | None -> Error ParseFail
+    
     
   
   
