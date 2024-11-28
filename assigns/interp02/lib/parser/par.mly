@@ -43,6 +43,7 @@
 %token BOOLTY "bool"
 %token UNITTY "unit"
 
+%right ARROW
 %right OR
 %right AND
 %left LT LTE GT GTE EQ NEQ
