@@ -160,6 +160,44 @@ exception DivByZero
 exception RecWithoutArg
 exception CompareFunVals
 
+let eval_bop op v1 v2 =
+  match (op,v1,v2)with
+  | (Add, VInt n1, VInt n2) -> VInt (n1 + n2)
+  | (Sub, VInt n1, VInt n2) -> VInt (n1 - n2)
+  | (Mul, VInt n1, VInt n2) -> VInt (n1 * n2)
+  | (Div, VInt _, VInt 0) -> raise DivByZero
+  | (Div, VInt n1, VInt n2) -> VInt (n1 / n2)
+  | (Mod, VInt _, VInt 0) -> raise DivByZero
+  | (Mod, VInt n1, VInt n2) -> VInt (n1 mod n2)
+  | (AddF, VFloat n1, VFloat n2) -> VFloat (n1 +. n2)
+  | (SubF, VFloat n1, VFloat n2) -> VFloat (n1 -. n2)
+  | (MulF, VFloat n1, VFloat n2) -> VFloat (n1 *. n2)
+  | (DivF, VFloat n1, VFloat n2) -> VFloat (n1 /. n2)
+  | (PowF, VFloat n1, VFloat n2) -> VFloat (n1 ** n2)
+  | (Lt, VInt n1, VInt n2) -> VBool (n1 < n2)
+  | (Lt, VFloat n1, VFloat n2) -> VBool (n1 < n2)
+  | (Lt, _, _) -> raise CompareFunVals
+  | (Lte, VInt n1, VInt n2) -> VBool (n1 <= n2)
+  | (Lte, VFloat n1, VFloat n2) -> VBool (n1 <= n2)
+  | (Lte, _, _) -> raise CompareFunVals
+  | (Gt, VInt n1, VInt n2) -> VBool (n1 > n2)
+  | (Gt, VFloat n1, VFloat n2) -> VBool (n1 > n2)
+  | (Gt, _, _) -> raise CompareFunVals
+  | (Gte, VInt n1, VInt n2) -> VBool (n1 >= n2)
+  | (Gte, VFloat n1, VFloat n2) -> VBool (n1 >= n2)
+  | (Gte, _, _) -> raise CompareFunVals
+  | (Eq, v1, v2) -> VBool (v1 = v2)
+  | (Neq, v1, v2) -> VBool (v1 <> v2)
+  | (And, VBool false, _) -> VBool false
+  | (And, VBool b1, VBool b2) -> VBool (b1 && b2)
+  | (Or, VBool true, _) -> VBool true
+  | (Or, VBool b1, VBool b2) -> VBool (b1 || b2)
+  | (Concat, VList v1, VList v2) -> VList (v1 @ v2)
+  | (Cons, v1, VList v2) -> VList (v1 :: v2)
+  | (Comma, v1, v2) -> VPair (v1, v2)
+    | _ -> failwith "operation error"
+
+
 let rec eval_expr (env : dyn_env) (e : expr) : value =
   match e with
   | Unit -> VUnit
@@ -180,74 +218,7 @@ let rec eval_expr (env : dyn_env) (e : expr) : value =
     (
     let v1 = eval_expr env e1 in
     let v2 = eval_expr env e2 in
-    let int_op f = match v1, v2 with
-      | VInt i1, VInt i2 -> VInt (f i1 i2)
-      | _ -> failwith "Type error"
-    in
-    let float_op f = match v1, v2 with
-      | VFloat f1, VFloat f2 -> VFloat (f f1 f2)
-      | _ -> failwith "Type error"
-    in
-    match op with
-    | Add -> int_op (fun x y -> x + y)
-    | Sub -> int_op (fun x y -> x - y)
-    | Mul -> int_op (fun x y -> x * y)
-    | Div -> (match v1, v2 with
-        | VInt _, VInt 0 -> raise DivByZero
-        | VInt x, VInt y -> VInt (x / y)
-        | _ -> failwith "Type error")
-    | Mod -> (match v1, v2 with
-        | VInt _, VInt 0 -> raise DivByZero
-        | VInt x, VInt y -> VInt (x mod y)
-        | _ -> failwith "Type error")
-    | AddF -> float_op ( +. )
-    | SubF -> float_op ( -. )
-    | MulF -> float_op ( *. )
-    | DivF -> (match v1, v2 with
-        | VFloat _, VFloat 0.0 -> raise DivByZero
-        | VFloat x, VFloat y -> VFloat (x /. y)
-        | _ -> failwith "Type error")
-    | PowF -> float_op ( ** )
-    | Cons -> (match v1, v2 with
-        | VInt x, VList xs -> VList (VInt x :: xs)
-        | _ -> failwith "Cons requires an integer and a list")
-    | Concat -> (match v1, v2 with
-        | VList xs1, VList xs2 -> VList (xs1 @ xs2)
-        | _ -> failwith "Concat requires two lists")
-        | Lt -> (match v1, v2 with
-        | VInt x, VInt y -> VBool (x < y)
-        | _ -> failwith "Lt requires two integers")
-    | Lte -> (match v1, v2 with
-        | VInt x, VInt y -> VBool (x <= y)
-        | _ -> failwith "Lte requires two integers")
-    | Gt -> (match v1, v2 with
-        | VInt x, VInt y -> VBool (x > y)
-        | _ -> failwith "Gt requires two integers")
-    | Gte -> (match v1, v2 with
-        | VInt x, VInt y -> VBool (x >= y)
-        | _ -> failwith "Gte requires two integers")
-    | Eq -> (match v1, v2 with
-        | VInt x, VInt y -> VBool (x = y)
-        | VFloat x, VFloat y -> VBool (x = y)
-        | VBool x, VBool y -> VBool (x = y)
-        | VList xs1, VList xs2 -> VBool (xs1 = xs2)
-        | VPair (x1, x2), VPair (y1, y2) -> VBool (x1 = y1 && x2 = y2)
-        | _ -> failwith "Eq requires comparable types")
-    | Neq -> (match v1, v2 with
-        | VInt x, VInt y -> VBool (x <> y)
-        | VFloat x, VFloat y -> VBool (x <> y)
-        | VBool x, VBool y -> VBool (x <> y)
-        | VList xs1, VList xs2 -> VBool (xs1 <> xs2)
-        | VPair (x1, x2), VPair (y1, y2) -> VBool (x1 <> y1 || x2 <> y2)
-        | _ -> failwith "Neq requires comparable types")
-    | And -> (match v1, v2 with
-      | VInt x, VInt y -> VBool (x <> 0 && y <> 0)
-      | _ -> failwith "And requires two integers")
-      | Or -> (match v1, v2 with
-        | VInt x, VInt y -> VBool (x <> 0 || y <> 0)
-        | _ -> failwith "Or requires two integers")
-    | Comma -> failwith "Comma is not a valid operation"
-    )
+     eval_bop op v1 v2)
   | If (cond, e_then, e_else) -> (
       match eval_expr env cond with
       | VBool true -> eval_expr env e_then
