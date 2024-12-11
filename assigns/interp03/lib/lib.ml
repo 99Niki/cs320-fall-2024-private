@@ -29,72 +29,127 @@ let rec fvs = function
   | TFun (t1, t2) -> VarSet.union (fvs t1) (fvs t2)
 
 
-let unify (t_out : ty) (cs : constr list) : ty_scheme option =
-  let rec go cs =
-    match cs with
-    | [] -> Some (Forall ([], t_out)) (* No constraints left, return the result *)
-    | (t1, t2) :: rest when t1 = t2 ->
-      go rest (* Skip equivalent types *)
-    | (TFun (t1, t2), TFun (t1', t2')) :: rest ->
-      go ((t1, t1') :: (t2, t2') :: rest) (* Decompose function types *)
-    | (TList t1, TList t2) :: rest ->
-      go ((t1, t2) :: rest) (* Decompose list types *)
-    | (TOption t1, TOption t2) :: rest ->
-      go ((t1, t2) :: rest) (* Decompose option types *)
-    | (TPair (t1, t2), TPair (t1', t2')) :: rest ->
-      go ((t1, t1') :: (t2, t2') :: rest) (* Decompose pair types *)
-    | (TVar x, t) :: rest when not (VarSet.mem x (fvs t)) ->
-      let rest' = ty_subst_cs t x rest in
-      go rest' (* Substitute type variables in the rest *)
-    | (t, TVar x) :: rest ->
-      go ((TVar x, t) :: rest) (* Symmetrize TVar handling *)
-    | _ -> None (* Types are not unifiable *)
-  in
-  go cs
+  let unify (t_out : ty) (cs : constr list) : ty_scheme option =
+    let rec go cs =
+      match cs with
+      | [] -> None
+      | [TVar "$_out", t] -> Some t  (* Optimization to not build a full solution *)
+      | (TPair (t1, t2), TPair (t1', t2')) :: cs ->
+          go ((t1, t1') :: (t2, t2') :: cs)
+      | (TList t1, TList t2) :: cs | (TOption t1, TOption t2) :: cs ->
+          go ((t1, t2) :: cs)
+      | (t1, t2) :: cs when t1 = t2 -> go cs
+      | (TFun (t1, t2), TFun (t1', t2')) :: cs ->
+          go ((t1, t1') :: (t2, t2') :: cs)
+      | (TVar x, t) :: cs ->
+          if VarSet.mem x (fvs t) then None
+          else go (ty_subst_cs t x cs)
+      | (t, TVar x) :: cs -> go ((TVar x, t) :: cs)
+      | _ -> None
+    in
+    let tys = go (cs @ [TVar "$_out", t_out]) in
+    match tys with
+    | None -> None
+    | Some t' ->   
+      let s = VarSet.to_list (fvs t') in
+      Some (Forall (s, t'))
 
-
-let rec type_of' (ctxt : stc_env) (e : expr) : ty * (ty * ty) list =
-  let rec go e =
+let rec instantiate bnd_vars t =
+  match bnd_vars with
+  | [] -> t
+  | x :: bnd_vars ->
+      let b = TVar (gensym ()) in
+      instantiate bnd_vars (ty_subst b x t)
+      
+let type_of' (ctxt : stc_env) (e : expr) : ty * (ty * ty) list =
+  let rec go ctxt e =
     match e with
+    | Unit -> TUnit, []
+    | True | False -> TBool, []
     | Int _ -> TInt, []
-    | Bop (Add, e1, e2) ->
-      let t1, c1 = go e1 in
-      let t2, c2 = go e2 in
-      ( TInt, (t1, TInt) :: (t2, TInt) :: c1 @ c2 )
-    | If (e1, e2, e3) ->
-      let t1, c1 = go e1 in
-      let t2, c2 = go e2 in
-      let t3, c3 = go e3 in
-      ( t2, [(t1, TBool); (t2, t3)] @ c1 @ c2 @ c3 )
-    | ListMatch { matched; hd_name; tl_name; cons_case; nil_case } ->
-      let t_matched, c_matched = go matched in
-      let t_hd = TVar (gensym ()) in
-      let ctxt = Env.add hd_name (Forall ([], t_hd)) ctxt in
-      let ctxt = Env.add tl_name (Forall ([], TList t_hd)) ctxt in
-      let t_cons, c_cons = type_of' ctxt cons_case in
-      let t_nil, c_nil = type_of' ctxt nil_case in
-      ( t_cons, (t_matched, TList t_hd) :: (t_nil, t_cons) :: c_matched @ c_cons @ c_nil )
-    | ESome e_inner ->
-      let t_inner, c_inner = go e_inner in
-      ( TOption t_inner, c_inner )
-    | OptMatch { matched; some_name; some_case; none_case } ->
-      let t_matched, c_matched = go matched in
-      let t_some = TVar (gensym ()) in
-      let ctxt = Env.add some_name (Forall ([], t_some)) ctxt in
-      let t_some_case, c_some_case = type_of' ctxt some_case in
-      let t_none_case, c_none_case = type_of' ctxt none_case in
-      ( t_some_case, (t_matched, TOption t_some) :: (t_some_case, t_none_case) :: c_matched @ c_some_case @ c_none_case )
+    | Float _ -> TFloat, []
+    | Var x ->
+      let bnd_vars, t = 
+        (match Env.find x ctxt with
+        | Forall (vars, t) -> vars, t) 
+      in
+      instantiate bnd_vars t, []
+    | ENone -> TOption (TVar (gensym ())), []
+    | ESome e -> 
+        let t, c = go ctxt e in 
+        TOption (t), c
+    | Nil -> TList (TVar (gensym ())), []
+    | Bop (op, e1, e2) -> 
+        let t1, c1 = go ctxt e1 in
+        let t2, c2 = go ctxt e2 in
+        (match op with
+        | Cons -> (TList t1, (t2, TList t1) :: c1 @ c2)
+        | Add | Sub | Mul | Div | Mod -> (TInt, [(t1, TInt); (t2, TInt)] @ c1 @ c2)
+        | AddF | SubF | MulF | DivF | PowF -> (TFloat, [(t1, TFloat); (t2, TFloat)] @ c1 @ c2)
+        | Lt | Lte | Gt | Gte | Eq | Neq ->  (TBool, (t1, t2) :: c1 @ c2)
+        | And | Or ->  (TBool, [(t1, TBool); (t2, TBool)] @ c1 @ c2)
+        | Concat -> 
+            let alpha = TList (TVar (gensym ())) in 
+            (alpha, [(t1, alpha); (t2, alpha)] @ c1 @ c2)
+        | Comma -> (TPair (t1, t2), c1 @ c2))
+    | If (e1, e2, e3) -> 
+        let t1, c1 = go ctxt e1 in
+        let t2, c2 = go ctxt e2 in
+        let t3, c3 = go ctxt e3 in
+        (t3, [(t1, TBool); (t2, t3)] @ c1 @ c2 @ c3)
+    | Assert False -> TVar (gensym ()), []
+    | Assert e -> 
+        let t, c = go ctxt e in
+        TUnit, (t, TBool) :: c
+    | Annot (e, ty) -> 
+        let t, c = go ctxt e in
+        ty, (ty, t) :: c
+    | OptMatch { matched; some_name; some_case; none_case } -> 
+        let tm, cm = go ctxt matched in
+        let alpha = TVar (gensym ()) in
+        let ctxt_cons = Env.add some_name (Forall ([], alpha)) ctxt in
+        let ts, cs = go ctxt_cons some_case in
+        let tn, cn = go ctxt none_case in
+        (tn, [(tm, TOption alpha); (ts, tn)] @ cm @ cs @ cn)
+    | ListMatch { matched; hd_name; tl_name; cons_case; nil_case } -> 
+        let tm, cm = go ctxt matched in
+        let alpha = TVar (gensym ()) in
+        let ctxt_cons = Env.add hd_name (Forall ([], alpha)) (Env.add tl_name (Forall ([], TList alpha)) ctxt) in
+        let tc, cc = go ctxt_cons cons_case in
+        let tn, cn = go ctxt nil_case in
+        (tn, [(tm, TList alpha); (tc, tn)] @ cm @ cc @ cn)
     | PairMatch { matched; fst_name; snd_name; case } ->
-      let t_matched, c_matched = go matched in
-      let t_fst = TVar (gensym ()) in
-      let t_snd = TVar (gensym ()) in
-      let ctxt = Env.add fst_name (Forall ([], t_fst)) ctxt in
-      let ctxt = Env.add snd_name (Forall ([], t_snd)) ctxt in
-      let t_case, c_case = type_of' ctxt case in
-      ( t_case, (t_matched, TPair (t_fst, t_snd)) :: c_matched @ c_case )
-    | _ -> failwith "Unsupported expression"
-  in go e
-
+        let tm, cm = go ctxt matched in
+        let alpha = TVar (gensym ()) in
+        let beta = TVar (gensym ()) in
+        let ctxt_cons = Env.add fst_name (Forall ([], alpha)) (Env.add snd_name (Forall ([], beta)) ctxt) in
+        let tc, cc = go ctxt_cons case in
+        (tc, (tm, TPair (alpha, beta)) :: cm @ cc)
+    | Fun (x, ty_opt, e) ->
+        let x_ty = match ty_opt with Some t -> t | None -> TVar (gensym ()) in
+        let ctxt_body = Env.add x (Forall ([], x_ty)) ctxt in
+        let t, c = go ctxt_body e in
+        (TFun (x_ty, t), c)
+    | App (e1, e2) ->
+        let t1, c1 = go ctxt e1 in
+        let t2, c2 = go ctxt e2 in
+        let alpha = TVar (gensym ()) in
+        (alpha, (t1, TFun (t2, alpha)) :: c1 @ c2)
+    | Let { is_rec; name; value; body } ->
+        if is_rec then
+            let alpha = TVar (gensym ()) in
+            let beta = TVar (gensym ()) in
+            let ctxt' = Env.add name (Forall ([], TFun (alpha, beta))) ctxt in
+            let tv, cv = go ctxt' value in
+            let ctxt'' = Env.add name (Forall ([], tv)) ctxt in
+            let tb, cb = go ctxt'' body in
+            (tb, (tv, TFun (alpha, beta)) :: cv @ cb)
+        else 
+            let tv, cv = go ctxt value in
+            let tb, cb = go (Env.add name (Forall ([], tv)) ctxt) body in
+            (tb, cv @ cb)
+  in go ctxt e
+  
 let type_of (ctxt: stc_env) (e: expr) : ty_scheme option =
   let (t,c) = type_of' ctxt e in
   unify t c
