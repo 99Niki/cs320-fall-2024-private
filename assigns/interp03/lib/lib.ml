@@ -169,16 +169,11 @@ let rec eval_expr (env : dyn_env) (e : expr) : value =
   | ENone -> VNone
   | Int n -> VInt n
   | Float f -> VFloat f
-  | Var x -> (
-      match Env.find_opt x env with
-      | Some v -> v
-      | None -> failwith ("Unbound variable: " ^ x)
-    )
+  | Var x -> ( Env.find x env)
   | Assert e -> (
       match eval_expr env e with
       | VBool true -> VUnit
-      | VBool false -> raise AssertFail
-      | _ -> failwith "Assert expects a boolean"
+      | _ -> raise AssertFail
     )
   | ESome e -> VSome (eval_expr env e)
   | Bop (op, e1, e2) ->
@@ -292,15 +287,19 @@ let rec eval_expr (env : dyn_env) (e : expr) : value =
       | _ -> failwith "Application requires a function"
     )
   | Annot (e, _) -> eval_expr env e
-  | Let {is_rec=true; name; value; body} ->
-    (match value with
-     | Fun (arg, _, bdy) ->
-       let clos = VClos {name=Some name; arg; body=bdy; env} in
-       eval_expr (Env.add name clos env) body
-     | _ -> raise RecWithoutArg)
-  | Let {is_rec=false; name; value; body} ->
-    let v = eval_expr env value in
-    eval_expr (Env.add name v env) body
+  | Let { is_rec; name; value; body } ->
+    if is_rec then
+      (match eval_expr env value with
+      | VClos { name=n; arg = param; body = nbody; env = closure_env } -> 
+        if (n = None) then
+          let value_val = VClos {name=Some name; arg = param; body=nbody; env = closure_env} in
+          eval_expr (Env.add name value_val env) body
+        else raise RecWithoutArg
+      | _ -> failwith "6")
+    else
+      let value_val = eval_expr env value in
+      eval_expr (Env.add name value_val env) body
+
 
 
 
